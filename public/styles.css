@@ -937,10 +937,6 @@ button:focus-visible {
 }
 
 #commuter-sheet.collapsed {
-    /* Pushes the sheet down, leaving ~90px visible for the handle and ETA */
-    transform: translateY(calc(100% - 90px)); 
-}
-
-.sheet-handle, .arrival-row {
-    cursor: pointer; /* Lets users know it can be tapped */
+    /* Preserves the original horizontal centering (-50%) while pushing it down */
+    transform: translate(-50%, calc(100% - 90px)); 
 }
