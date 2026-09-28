@@ -204,3 +204,22 @@
   window.addEventListener('pagehide', stopTracking);
   fetch('/api/config').then((r)=>r.json()).then((c)=>{ if(c.mode==='demo'||!c.trafficAvailable) $('#mode-badge').textContent='DEMO ETA'; }).catch(()=>{ $('#mode-badge').textContent='DEMO ETA'; });
 })();
+// BOTTOM SHEET TOGGLE LOGIC
+document.addEventListener('DOMContentLoaded', () => {
+    const sheet = document.getElementById('commuter-sheet');
+    const handle = document.querySelector('.sheet-handle');
+    const arrivalRow = document.querySelector('.arrival-row');
+
+    function toggleSheet() {
+        if (sheet) {
+            sheet.classList.toggle('collapsed');
+        }
+    }
+
+    // Toggle when tapping the handle or the ETA area
+    if (handle) handle.addEventListener('click', toggleSheet);
+    if (arrivalRow) arrivalRow.addEventListener('click', toggleSheet);
+    
+    // Optional: Start the app with the panel collapsed so the map is visible immediately
+    if (sheet) sheet.classList.add('collapsed'); 
+});
