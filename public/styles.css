@@ -941,3 +941,17 @@ button:focus-visible {
     /* Preserves the original horizontal centering (-50%) while pushing it down */
     transform: translate(-50%, calc(100% - 90px));
 }
+/* CUSTOM LEAFLET MAP MARKERS */
+.shuttle-marker {
+    background-color: #3b82f6; /* Bright Blue */
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
+
+.terminal-marker {
+    background-color: #ef4444; /* Bright Red */
+    border: 2px solid white;
+    border-radius: 50%;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.4);
+}
