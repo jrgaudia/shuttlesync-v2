@@ -1,21 +1,193 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#102d4f">
-<title>ShuttleSync — Mapúa MCL</title>
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
-<link rel="stylesheet" href="/styles.css">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+    <meta name="theme-color" content="#102d4f">
+    <title>ShuttleSync — Mapúa MCL</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+    <link rel="stylesheet" href="/styles.css">
 </head>
+
 <body>
-<header class="topbar"><a class="brand" href="#" aria-label="ShuttleSync home"><span class="brand-mark">S</span><span><strong>ShuttleSync</strong><small>MAPÚA MCL · CAMPUS TRANSIT</small></span></a><span id="connection" class="connection"><i></i> Connecting</span></header>
-<main>
-<section id="screen-role" class="screen auth-screen"><div class="intro"><p class="eyebrow">MAPÚA MALAYAN COLLEGES LAGUNA</p><h1>Your campus shuttle,<br><em>in view.</em></h1><p>Track shuttle arrivals and check terminal availability.</p></div><div class="auth-card"><h2>Continue as</h2><p class="muted">Choose your ShuttleSync account type.</p><button class="role-option" data-role="student"><span class="role-icon">S</span><span><b>Student commuter</b><small>Find your route and arrival estimate</small></span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button><button class="role-option" data-role="driver"><span class="role-icon">D</span><span><b>Shuttle driver</b><small>Share your route status</small></span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></button><p class="fineprint">Coursework prototype · Location is shared only while online.</p></div></section>
-<section id="screen-login" class="screen auth-screen hidden"><div class="auth-card narrow"><button class="text-button" id="back-role"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span>Back</span></button><p class="eyebrow">SECURE DEMO ACCESS</p><h1 id="login-heading">Sign in</h1><p class="muted">Use the credentials provided by your ShuttleSync administrator.</p><form id="login-form"><label for="login-id">Account ID</label><input id="login-id" name="id" autocomplete="username" required><label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password" required><p id="login-error" class="error" role="alert" aria-live="polite"></p><button class="button primary wide" type="submit">Sign in</button></form></div></section>
-<section id="screen-route" class="screen auth-screen hidden"><div class="auth-card route-card"><button class="text-button" id="signout-route">Sign out</button><p class="eyebrow">PLAN YOUR SHUTTLE</p><h1>Choose a route</h1><p class="muted">Select the terminal served by your shuttle.</p><div id="route-list" class="route-list" aria-label="Available routes"></div><button class="button primary wide" id="continue-route" disabled>Continue</button><p class="fineprint">Estimates are demonstrative and may not reflect current road conditions.</p></div></section>
-<section id="screen-commuter" class="screen app-screen hidden"><div class="map-heading"><div><p class="eyebrow">YOUR SELECTED ROUTE</p><h1 id="commuter-route-title">Shuttle route</h1></div><button class="text-button" id="change-route">Change</button></div><div class="map-wrap"><div id="map" aria-label="Map showing shuttle and terminal"></div><div class="map-badge" id="mode-badge">DEMO ETA</div><button class="map-control" id="recenter" aria-label="Recenter map on shuttle"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="6"/><path d="M12 2v4m0 12v4M2 12h4m12 0h4"/></svg></button><button class="map-control locate-control" id="locate-me" aria-label="Show my location" title="Optional: show my location"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z"/><circle cx="12" cy="10" r="2.5"/></svg></button><div class="signal" id="signal">Waiting for shuttle location</div></div><aside class="sheet" id="commuter-sheet"><div class="sheet-handle"></div><div class="arrival-row"><div><span class="eyebrow">ESTIMATED ARRIVAL</span><strong id="eta">—</strong><span id="eta-status" class="status-text">Waiting for location</span></div><div class="capacity-chip" id="capacity">Availability unknown</div></div><div class="detail-grid"><div><span>Terminal</span><b id="terminal-name">—</b></div><div><span>Waiting</span><b id="waiting-count">0 passengers</b></div><div><span>Driver</span><b id="driver-name">—</b></div><div><span>Vehicle</span><b id="driver-vehicle">—</b></div></div><p class="updated" id="updated">No location received yet</p><div class="sheet-actions"><button class="button primary" id="checkin">I'm waiting here</button><button class="button secondary" id="fare-open">Fare &amp; payment</button></div><p class="prototype-note">Demo mode · ETA is illustrative. Fare to be confirmed.</p><div id="announce" class="announcement hidden" role="status"></div></aside><button class="button secondary signout-float" id="signout-commuter">Sign out</button></section>
-<section id="screen-driver" class="screen driver-screen hidden"><div class="driver-top"><div><p class="eyebrow">DRIVER CONSOLE</p><h1 id="driver-route-title">Selected route</h1></div><button class="text-button" id="signout-driver">Sign out</button></div><div class="driver-grid"><article class="driver-card state-card"><span class="eyebrow">SHIFT STATUS</span><h2 id="driver-state">Offline</h2><p id="driver-message">Choose real GPS or explicitly labeled demo mode to start sharing.</p><div class="driver-metrics"><div><span>GPS freshness</span><b id="gps-freshness">Not sharing</b></div><div><span>Waiting</span><b id="driver-waiting">0</b></div><div><span>Route status</span><b id="driver-status">Waiting for shuttle</b></div></div><button class="button primary wide" id="online-button">Go online with GPS</button><button class="button secondary wide" id="demo-button">Start labeled demo mode</button><p class="fineprint">Real location is shared with commuters on this route only while online.</p></article><article class="driver-card safety-card"><span class="eyebrow">DRIVER SAFETY</span><h2>Keep attention on the road</h2><p>Text and manual alert controls lock automatically when reported speed exceeds 5 km/h.</p><div id="manual-controls"><label for="announcement-input">Route announcement</label><textarea id="announcement-input" rows="3" maxlength="180" placeholder="Share a short service update"></textarea><button class="button secondary wide" id="send-announcement">Send update</button><div class="capacity-controls"><span>Seat availability</span><div><button class="button secondary" data-capacity="Available">Available</button><button class="button secondary" data-capacity="Filling">Filling</button><button class="button secondary" data-capacity="Full">Full</button></div></div></div><div id="motion-lock" class="motion-lock hidden" role="status">Manual controls hidden while moving. Stop safely to use controls.</div><button class="button danger wide" id="sos">Hold to send demo SOS</button><p class="fineprint">Demo only. No emergency service or escalation recipient is connected.</p></article></div><div id="permission-dialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="permission-title"><div class="dialog"><p class="eyebrow">BEFORE GPS ACCESS</p><h2 id="permission-title">Share your location?</h2><p>Your precise location will be shared with commuters viewing this route while your shift is online. It stops when you go offline. Real GPS requires browser permission and HTTPS on phones.</p><button id="allow-gps" class="button primary wide">Allow and go online</button><button id="cancel-gps" class="button secondary wide">Not now</button></div></div></section>
-</main>
-<div id="fare-dialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="fare-title"><div class="dialog"><button class="dialog-close" id="fare-close" aria-label="Close"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg></button><p class="eyebrow">TRIP FARE</p><h2 id="fare-title">Fare to be confirmed</h2><p id="fare-copy">The operator has not confirmed a fare for this route.</p><p class="prototype-note">Prototype payment · No real charges</p><label for="payment-method">Simulated payment method</label><select id="payment-method"><option value="cash">Cash on board</option><option value="ewallet">Mock e-wallet</option><option value="card">Mock card</option></select><button id="pay-button" class="button primary wide">Create simulated receipt</button><div id="receipt" class="receipt hidden" role="status"></div><details class="trip-history"><summary>Recent simulated trips</summary><div id="trip-history" class="trip-history-list" aria-live="polite">Sign in to view your trip history.</div></details><p class="fineprint">No card, wallet, or payment credentials are requested or stored.</p></div></div>
-<div id="toast" class="toast" role="status" aria-live="polite"></div>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script><script src="/socket.io/socket.io.js"></script><script src="/app.js" defer></script>
-</body></html>
+    <header class="topbar"><a class="brand" href="#" aria-label="ShuttleSync home"><span
+                class="brand-mark">S</span><span><strong>ShuttleSync</strong><small>MAPÚA MCL · CAMPUS
+                    TRANSIT</small></span></a><span id="connection" class="connection"><i></i> Connecting</span>
+    </header>
+    <main>
+        <section id="screen-role" class="screen auth-screen">
+            <div class="intro">
+                <p class="eyebrow">MAPÚA MALAYAN COLLEGES LAGUNA</p>
+                <h1>Your campus shuttle,<br><em>in view.</em></h1>
+                <p>Track shuttle arrivals and check terminal availability.</p>
+            </div>
+            <div class="auth-card">
+                <h2>Continue as</h2>
+                <p class="muted">Choose your ShuttleSync account type.</p><button class="role-option"
+                    data-role="student"><span class="role-icon">S</span><span><b>Student commuter</b><small>Find your
+                            route and arrival estimate</small></span><span class="arrow" aria-hidden="true"><svg
+                            viewBox="0 0 24 24">
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg></span></button><button class="role-option" data-role="driver"><span
+                        class="role-icon">D</span><span><b>Shuttle driver</b><small>Share your route
+                            status</small></span><span class="arrow" aria-hidden="true"><svg viewBox="0 0 24 24">
+                            <path d="M5 12h14M13 6l6 6-6 6" />
+                        </svg></span></button>
+                <p class="fineprint">Coursework prototype · Location is shared only while online.</p>
+            </div>
+        </section>
+        <section id="screen-login" class="screen auth-screen hidden">
+            <div class="auth-card narrow"><button class="text-button" id="back-role"><svg viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <path d="m15 18-6-6 6-6" />
+                    </svg><span>Back</span></button>
+                <p class="eyebrow">SECURE DEMO ACCESS</p>
+                <h1 id="login-heading">Sign in</h1>
+                <p class="muted">Use the credentials provided by your ShuttleSync administrator.</p>
+                <form id="login-form"><label for="login-id">Account ID</label><input id="login-id" name="id"
+                        autocomplete="username" required><label for="login-password">Password</label><input
+                        id="login-password" name="password" type="password" autocomplete="current-password" required>
+                    <p id="login-error" class="error" role="alert" aria-live="polite"></p><button
+                        class="button primary wide" type="submit">Sign in</button>
+                </form>
+            </div>
+        </section>
+        <section id="screen-route" class="screen auth-screen hidden">
+            <div class="auth-card route-card"><button class="text-button" id="signout-route">Sign out</button>
+                <p class="eyebrow">PLAN YOUR SHUTTLE</p>
+                <h1>Choose a route</h1>
+                <p class="muted">Select the terminal served by your shuttle.</p>
+                <div id="route-list" class="route-list" aria-label="Available routes"></div><button
+                    class="button primary wide" id="continue-route" disabled>Continue</button>
+                <p class="fineprint">Estimates are demonstrative and may not reflect current road conditions.</p>
+            </div>
+        </section>
+        <section id="screen-commuter" class="screen app-screen hidden">
+            <div class="map-heading">
+                <div>
+                    <p class="eyebrow">YOUR SELECTED ROUTE</p>
+                    <h1 id="commuter-route-title">Shuttle route</h1>
+                </div><button class="text-button" id="change-route">Change</button>
+            </div>
+            <div class="map-wrap">
+                <div id="map" aria-label="Map showing shuttle and terminal"></div>
+                <div class="map-badge" id="mode-badge">DEMO ETA</div><button class="map-control" id="recenter"
+                    aria-label="Recenter map on shuttle"><svg viewBox="0 0 24 24" aria-hidden="true">
+                        <circle cx="12" cy="12" r="6" />
+                        <path d="M12 2v4m0 12v4M2 12h4m12 0h4" />
+                    </svg></button><button class="map-control locate-control" id="locate-me"
+                    aria-label="Show my location" title="Optional: show my location"><svg viewBox="0 0 24 24"
+                        aria-hidden="true">
+                        <path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 1 1 16 0Z" />
+                        <circle cx="12" cy="10" r="2.5" />
+                    </svg></button>
+                <div class="signal" id="signal">Waiting for shuttle location</div>
+            </div>
+            <aside class="sheet" id="commuter-sheet">
+                <div class="sheet-handle"></div>
+                <div class="arrival-row">
+                    <div><span class="eyebrow">ESTIMATED ARRIVAL</span><strong id="eta">—</strong><span id="eta-status"
+                            class="status-text">Waiting for location</span></div>
+                    <div class="capacity-chip" id="capacity">Availability unknown</div>
+                </div>
+                <div class="detail-grid">
+                    <div><span>Terminal</span><b id="terminal-name">—</b></div>
+                    <div><span>Waiting</span><b id="waiting-count">0 passengers</b></div>
+                    <div><span>Driver</span><b id="driver-name">—</b></div>
+                    <div><span>Vehicle</span><b id="driver-vehicle">—</b></div>
+                </div>
+                <p class="updated" id="updated">No location received yet</p>
+                <div class="sheet-actions"><button class="button primary" id="checkin">I'm waiting here</button><button
+                        class="button secondary" id="fare-open">Fare &amp; payment</button></div>
+                <p class="prototype-note">Demo mode · ETA is illustrative. Fare to be confirmed.</p>
+                <div id="announce" class="announcement hidden" role="status"></div>
+            </aside><button class="button secondary signout-float" id="signout-commuter">Sign out</button>
+        </section>
+        <section id="screen-driver" class="screen driver-screen hidden">
+            <div class="driver-top">
+  <div>
+    <button class="text-button" id="back-driver" style="margin-bottom: 12px; padding: 0; display: flex; align-items: center; gap: 5px;">
+      <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" stroke="currentColor" stroke-width="2" fill="none"><path d="m15 18-6-6 6-6"/></svg> Change Route
+    </button>
+    <p class="eyebrow">DRIVER CONSOLE</p>
+    <h1 id="driver-route-title">Selected route</h1>
+  </div>
+  <button class="text-button" id="signout-driver">Sign out</button>
+</div>
+            <div class="driver-grid">
+                <article class="driver-card state-card"><span class="eyebrow">SHIFT STATUS</span>
+                    <h2 id="driver-state">Offline</h2>
+                    <p id="driver-message">Choose real GPS or explicitly labeled demo mode to start sharing.</p>
+                    <div class="driver-metrics">
+                        <div><span>GPS freshness</span><b id="gps-freshness">Not sharing</b></div>
+                        <div><span>Waiting</span><b id="driver-waiting">0</b></div>
+                        <div><span>Route status</span><b id="driver-status">Waiting for shuttle</b></div>
+                    </div><button class="button primary wide" id="online-button">Go online with GPS</button><button
+                        class="button secondary wide" id="demo-button">Start labeled demo mode</button>
+                    <p class="fineprint">Real location is shared with commuters on this route only while online.</p>
+                </article>
+                <article class="driver-card safety-card"><span class="eyebrow">DRIVER SAFETY</span>
+                    <h2>Keep attention on the road</h2>
+                    <p>Text and manual alert controls lock automatically when reported speed exceeds 5 km/h.</p>
+                    <div id="manual-controls"><label for="announcement-input">Route announcement</label><textarea
+                            id="announcement-input" rows="3" maxlength="180"
+                            placeholder="Share a short service update"></textarea><button class="button secondary wide"
+                            id="send-announcement">Send update</button>
+                        <div class="capacity-controls"><span>Seat availability</span>
+                            <div><button class="button secondary" data-capacity="Available">Available</button><button
+                                    class="button secondary" data-capacity="Filling">Filling</button><button
+                                    class="button secondary" data-capacity="Full">Full</button></div>
+                        </div>
+                    </div>
+                    <div id="motion-lock" class="motion-lock hidden" role="status">Manual controls hidden while moving.
+                        Stop safely to use controls.</div><button class="button danger wide" id="sos">Hold to send demo
+                        SOS</button>
+                    <p class="fineprint">Demo only. No emergency service or escalation recipient is connected.</p>
+                </article>
+            </div>
+            <div id="permission-dialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true"
+                aria-labelledby="permission-title">
+                <div class="dialog">
+                    <p class="eyebrow">BEFORE GPS ACCESS</p>
+                    <h2 id="permission-title">Share your location?</h2>
+                    <p>Your precise location will be shared with commuters viewing this route while your shift is
+                        online. It stops when you go offline. Real GPS requires browser permission and HTTPS on phones.
+                    </p><button id="allow-gps" class="button primary wide">Allow and go online</button><button
+                        id="cancel-gps" class="button secondary wide">Not now</button>
+                </div>
+            </div>
+        </section>
+    </main>
+    <div id="fare-dialog" class="dialog-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="fare-title">
+        <div class="dialog"><button class="dialog-close" id="fare-close" aria-label="Close"><svg viewBox="0 0 24 24"
+                    aria-hidden="true">
+                    <path d="m7 7 10 10M17 7 7 17" />
+                </svg></button>
+            <p class="eyebrow">TRIP FARE</p>
+            <h2 id="fare-title">Fare to be confirmed</h2>
+            <p id="fare-copy">The operator has not confirmed a fare for this route.</p>
+            <p class="prototype-note">Prototype payment · No real charges</p><label for="payment-method">Simulated
+                payment method</label><select id="payment-method">
+                <option value="cash">Cash on board</option>
+                <option value="ewallet">Mock e-wallet</option>
+                <option value="card">Mock card</option>
+            </select><button id="pay-button" class="button primary wide">Create simulated receipt</button>
+            <div id="receipt" class="receipt hidden" role="status"></div>
+            <details class="trip-history">
+                <summary>Recent simulated trips</summary>
+                <div id="trip-history" class="trip-history-list" aria-live="polite">Sign in to view your trip history.
+                </div>
+            </details>
+            <p class="fineprint">No card, wallet, or payment credentials are requested or stored.</p>
+        </div>
+    </div>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+        integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/app.js" defer></script>
+</body>
+
+</html>
