@@ -931,6 +931,7 @@ button:focus-visible {
         transition: none !important
     }
 }
+
 /* BOTTOM SHEET COLLAPSE ANIMATION */
 #commuter-sheet {
     transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -938,5 +939,5 @@ button:focus-visible {
 
 #commuter-sheet.collapsed {
     /* Preserves the original horizontal centering (-50%) while pushing it down */
-    transform: translate(-50%, calc(100% - 90px)); 
+    transform: translate(-50%, calc(100% - 90px));
 }
