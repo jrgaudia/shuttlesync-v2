@@ -51,8 +51,8 @@
     }
     state.map.setView(state.route.terminal, 13); state.mapTouched = false;
     
-    // UPDATED: Injects the colored marker CSS classes based on the icon kind
-    const icon = (kind) => L.divIcon({ className: kind === 'shuttle' ? 'shuttle-marker' : 'terminal-marker', html: `<span class="${kind}-icon" aria-hidden="true"></span>`, iconSize: kind === 'shuttle' ? [30, 30] : [19, 19], iconAnchor: kind === 'shuttle' ? [15, 15] : [9, 9] });
+    // UPDATED: Injects the colored marker CSS classes and clears out the old white icon HTML
+    const icon = (kind) => L.divIcon({ className: kind === 'shuttle' ? 'shuttle-marker' : 'terminal-marker', html: '', iconSize: kind === 'shuttle' ? [30, 30] : [19, 19], iconAnchor: kind === 'shuttle' ? [15, 15] : [9, 9] });
     
     if (state.terminal) state.map.removeLayer(state.terminal);
     state.terminal = L.marker(state.route.terminal, { icon: icon('terminal'), title: `${state.route.name} terminal`, alt: 'Selected route terminal' }).addTo(state.map);
@@ -73,8 +73,8 @@
     if (state.map && window.L) {
       const latlng = [Number(data.lat), Number(data.lng)];
       
-      // UPDATED: Injects the colored shuttle-marker CSS class
-      const icon = L.divIcon({ className: 'shuttle-marker', html: '<span class="shuttle-icon" aria-hidden="true"></span>', iconSize: [30, 30], iconAnchor: [15, 15] });
+      // UPDATED: Injects the colored shuttle-marker CSS class and clears out the old white icon HTML
+      const icon = L.divIcon({ className: 'shuttle-marker', html: '', iconSize: [30, 30], iconAnchor: [15, 15] });
       
       if (!state.marker) state.marker = L.marker(latlng, { icon, title: 'Shuttle location', alt: 'Latest reported shuttle position' }).addTo(state.map);
       else state.marker.setLatLng(latlng);
