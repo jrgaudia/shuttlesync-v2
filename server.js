@@ -153,11 +153,15 @@ function createAppServer(options = {}) {
     }
     res.status(204).end();
   });
+  
   app.get('/api/config', (_req, res) => res.json({ mode: 'demo', trafficAvailable: false, trafficProvider: null, locationRequiresHttps: true, fareConfirmed }));
+  
+  // UPDATED: Now sends the 'start' coordinates to the frontend to draw the path
   app.get('/api/routes', (_req, res) => res.json(Object.values(ROUTES).map((route) => ({
-    id: route.id, name: route.name, terminal: route.terminal, driver: route.driver,
+    id: route.id, name: route.name, start: route.start, terminal: route.terminal, driver: route.driver,
     status: state.status[route.id], waiting: state.waitingPassengers[route.id], capacity: state.capacity[route.id], mode: 'demo'
   }))));
+  
   app.get('/api/fare', (req, res) => {
     const route = ROUTES[req.query.route];
     if (!route) return res.status(404).json({ error: 'Unknown route.' });
@@ -265,7 +269,6 @@ function createAppServer(options = {}) {
       const routeId = typeof payload === 'string' ? payload : payload?.route;
       if (!validRoute(routeId) || socket.data.activeRoute !== routeId) return ack({ ok: false, error: 'invalid_route' });
 
-      // Spatial proximity validation
       if (!payload.lat || !payload.lng) return ack({ ok: false, error: 'GPS location required for en-route pickups.' });
       
       const route = ROUTES[routeId];
