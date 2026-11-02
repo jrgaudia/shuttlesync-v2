@@ -60,13 +60,11 @@ function createAppServer(options = {}) {
   const sessions = new Map();
   const loginAttempts = new Map();
   const routeIds = Object.keys(ROUTES);
-  const fares = Object.fromEntries(routeIds.map((route) => {
-    const envKey = `FARE_${route.toUpperCase().replace('-', '_')}`;
-    const value = env[envKey];
-    const amount = value === undefined || value === '' ? null : Number(value);
-    return [route, Number.isFinite(amount) && amount >= 0 ? Math.round(amount) : null];
-  }));
-  const fareConfirmed = String(env.FARES_CONFIRMED || '').toLowerCase() === 'true';
+  
+  // UPDATED: Hardcode the presentation fare to 100 PHP and set it as confirmed
+  const fares = Object.fromEntries(routeIds.map((route) => [route, 100]));
+  const fareConfirmed = true;
+  
   const state = {
     waitingPassengers: Object.fromEntries(routeIds.map((id) => [id, 0])),
     lastPosition: Object.fromEntries(routeIds.map((id) => [id, null])),
@@ -166,7 +164,9 @@ function createAppServer(options = {}) {
     const confirmed = fareConfirmed && amount !== null;
     return res.json({ route: route.id, amount: confirmed ? amount : null, confirmed, display: confirmed ? `₱${amount}` : 'Fare to be confirmed', note: confirmed ? null : 'Prototype fare not set or confirmed by the shuttle operator.' });
   });
+  
   app.get('/api/trips', requireSession, (req, res) => res.json(state.trips.filter((trip) => trip.userId === req.session.id).map(({ userId, ...trip }) => trip)));
+  
   app.post('/api/pay', requireSession, async (req, res) => {
     const route = ROUTES[req.body?.route];
     const method = req.body?.method;
@@ -184,6 +184,7 @@ function createAppServer(options = {}) {
     state.trips.length = Math.min(state.trips.length, 100);
     return res.status(201).json(receipt);
   });
+  
   app.get('/api/eta', (req, res) => {
     const route = ROUTES[req.query.route];
     if (!route) return res.status(404).json({ error: 'Unknown route.' });
@@ -263,7 +264,6 @@ function createAppServer(options = {}) {
       if (socket.data.session.role === 'driver' && validRoute(routeId) && socket.data.activeRoute === routeId) setStatus(routeId, 'Driver offline', 'Shuttle location sharing has stopped.');
     });
 
-    // NEW: API handler to allow the frontend to cancel a check-in if the shuttle passes
     socket.on('cancelWaiting', (payload) => {
       if (socket.data.session.role !== 'student') return;
       const routeId = payload?.route;
@@ -290,7 +290,6 @@ function createAppServer(options = {}) {
         return ack({ ok: false, error: `You are too far from the route path (${distKm.toFixed(1)}km away).` });
       }
 
-      // UPDATED: Check if shuttle has already physically passed the commuter's vector
       const dx = route.terminal[1] - route.start[1];
       const dy = route.terminal[0] - route.start[0];
       const lenSq = dx * dx + dy * dy;
