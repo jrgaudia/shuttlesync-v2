@@ -26,6 +26,21 @@ function distanceKm(a, b) {
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
+// Calculates shortest distance from a point to a line segment (campus to terminal)
+function pointToSegmentDistanceKm(p, a, b) {
+  const x0 = p[1], y0 = p[0], x1 = a[1], y1 = a[0], x2 = b[1], y2 = b[0];
+  const dx = x2 - x1, dy = y2 - y1;
+  const lengthSq = dx * dx + dy * dy;
+  if (lengthSq === 0) return distanceKm(p, a);
+
+  // Find the projection factor t (clamped between 0 and 1 to stay on the line)
+  let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lengthSq;
+  t = Math.max(0, Math.min(1, t));
+
+  const projX = x1 + t * dx, projY = y1 + t * dy;
+  return distanceKm([y0, x0], [projY, projX]);
+}
+
 function safeEqual(a, b) {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const left = Buffer.from(a);
@@ -249,6 +264,18 @@ function createAppServer(options = {}) {
       if (socket.data.session.role !== 'student') return ack({ ok: false, error: 'unauthorized' });
       const routeId = typeof payload === 'string' ? payload : payload?.route;
       if (!validRoute(routeId) || socket.data.activeRoute !== routeId) return ack({ ok: false, error: 'invalid_route' });
+
+      // Spatial proximity validation
+      if (!payload.lat || !payload.lng) return ack({ ok: false, error: 'GPS location required for en-route pickups.' });
+      
+      const route = ROUTES[routeId];
+      const commuterPos = [Number(payload.lat), Number(payload.lng)];
+      const distKm = pointToSegmentDistanceKm(commuterPos, route.start, route.terminal);
+
+      if (distKm > 1.5) {
+        return ack({ ok: false, error: `You are too far from the route path (${distKm.toFixed(1)}km away).` });
+      }
+
       if (socket.data.checkedInRoutes.has(routeId)) return ack({ ok: true, count: state.waitingPassengers[routeId] });
       socket.data.checkedInRoutes.add(routeId);
       state.waitingPassengers[routeId] += 1;
