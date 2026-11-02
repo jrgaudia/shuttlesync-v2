@@ -228,7 +228,7 @@
     );
   });
   
-  $('#locate-me').addEventListener('click', () => { if (!navigator.geolocation) return toast('Location is unavailable in this browser.'); toast('Requesting optional location permission…'); navigator.geolocation.getCurrentPosition((p) => { const pos = [p.coords.latitude, p.coords.longitude]; if (!state.userMarker) state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#3476b8', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location'); else state.userMarker.setLatLng(pos); }, () => toast('Location denied or unavailable. You can continue using manual route selection.'), { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }); });
+  $('#locate-me').addEventListener('click', () => { if (!navigator.geolocation) return toast('Location is unavailable in this browser.'); toast('Requesting optional location permission…'); navigator.geolocation.getCurrentPosition((p) => { const pos = [p.coords.latitude, p.coords.longitude]; if (!state.userMarker) state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#22c55e', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location'); else state.userMarker.setLatLng(pos); }, () => toast('Location denied or unavailable. You can continue using manual route selection.'), { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }); });
   
   $('#fare-open').addEventListener('click', async () => {
     fareReturnFocus = document.activeElement;
