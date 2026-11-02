@@ -51,7 +51,6 @@
     }
     state.map.setView(state.route.terminal, 13); state.mapTouched = false;
     
-    // UPDATED: Injects the colored marker CSS classes and clears out the old white icon HTML
     const icon = (kind) => L.divIcon({ className: kind === 'shuttle' ? 'shuttle-marker' : 'terminal-marker', html: '', iconSize: kind === 'shuttle' ? [30, 30] : [19, 19], iconAnchor: kind === 'shuttle' ? [15, 15] : [9, 9] });
     
     if (state.terminal) state.map.removeLayer(state.terminal);
@@ -73,7 +72,6 @@
     if (state.map && window.L) {
       const latlng = [Number(data.lat), Number(data.lng)];
       
-      // UPDATED: Injects the colored shuttle-marker CSS class and clears out the old white icon HTML
       const icon = L.divIcon({ className: 'shuttle-marker', html: '', iconSize: [30, 30], iconAnchor: [15, 15] });
       
       if (!state.marker) state.marker = L.marker(latlng, { icon, title: 'Shuttle location', alt: 'Latest reported shuttle position' }).addTo(state.map);
@@ -191,18 +189,43 @@
   $('#recenter').addEventListener('click', () => { state.mapTouched = false; if (state.marker) state.map.setView(state.marker.getLatLng(), Math.max(state.map.getZoom(), 14)); else if (state.route) state.map.setView(state.route.terminal, 14); });
   
   $('#checkin').addEventListener('click', () => {
-    if (!state.socket?.connected) return toast('Realtime connection unavailable. Try again when connected.');
-    const button = $('#checkin'); button.disabled = true; button.textContent = 'Sending…';
-    let settled = false;
-    const timeout = setTimeout(() => {
-      if (settled) return; settled = true; button.disabled = false; button.textContent = "I'm waiting here";
-      toast('Check-in was not confirmed. Please try again.');
-    }, 5000);
-    state.socket.emit('commuterWaiting', { route: state.route.id }, (response) => {
-      if (settled) return; settled = true; clearTimeout(timeout);
-      if (!response?.ok) { button.disabled = false; button.textContent = "I'm waiting here"; toast('Check-in failed. Please try again.'); return; }
-      button.textContent = 'You are in the waiting count'; toast('Waiting status confirmed for this route.');
-    });
+    if (!state.socket?.connected) return toast('Realtime connection unavailable.');
+    if (!navigator.geolocation) return toast('Location is unavailable in this browser.');
+
+    const button = $('#checkin');
+    button.disabled = true;
+    button.textContent = 'Locating...';
+
+    navigator.geolocation.getCurrentPosition(
+      (p) => {
+        button.textContent = 'Verifying...';
+        let settled = false;
+        const timeout = setTimeout(() => {
+          if (settled) return; settled = true; 
+          button.disabled = false; button.textContent = "Wait along route";
+          toast('Check-in was not confirmed. Please try again.');
+        }, 5000);
+
+        state.socket.emit('commuterWaiting', { 
+          route: state.route.id, 
+          lat: p.coords.latitude, 
+          lng: p.coords.longitude 
+        }, (response) => {
+          if (settled) return; settled = true; clearTimeout(timeout);
+          if (!response?.ok) { 
+            button.disabled = false; button.textContent = "Wait along route"; 
+            toast(response?.error || 'Check-in failed.'); return; 
+          }
+          button.textContent = 'Pick-up confirmed'; toast('You are confirmed for an en-route pickup.');
+        });
+      },
+      () => {
+        button.disabled = false;
+        button.textContent = "Wait along route";
+        toast('Location access is required to wait along the route.');
+      },
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+    );
   });
   
   $('#locate-me').addEventListener('click', () => { if (!navigator.geolocation) return toast('Location is unavailable in this browser.'); toast('Requesting optional location permission…'); navigator.geolocation.getCurrentPosition((p) => { const pos = [p.coords.latitude, p.coords.longitude]; if (!state.userMarker) state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#3476b8', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location'); else state.userMarker.setLatLng(pos); }, () => toast('Location denied or unavailable. You can continue using manual route selection.'), { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }); });
