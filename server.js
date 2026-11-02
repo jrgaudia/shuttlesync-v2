@@ -5,7 +5,6 @@ const crypto = require('node:crypto');
 const { Server: SocketServer } = require('socket.io');
 require('dotenv').config({ quiet: true });
 
-// UPDATED: Every route now shares the Mapúa MCL campus as its starting coordinate [14.2693, 121.1253]
 const ROUTES = {
   calamba: { id: 'calamba', name: 'Calamba Terminal', start: [14.2693, 121.1253], terminal: [14.2046, 121.1553], driver: { name: 'Eduardo Santos', vehicle: 'Toyota Hiace Commuter', plate: 'NDO 4521' } },
   'sta-rosa': { id: 'sta-rosa', name: 'Sta. Rosa Terminal', start: [14.2693, 121.1253], terminal: [14.2939, 121.1036], driver: { name: 'Ricardo Mendoza', vehicle: 'Mitsubishi L300 FB', plate: 'DWT 8832' } },
@@ -27,14 +26,12 @@ function distanceKm(a, b) {
   return 6371 * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
 }
 
-// Calculates shortest distance from a point to a line segment (campus to terminal)
 function pointToSegmentDistanceKm(p, a, b) {
   const x0 = p[1], y0 = p[0], x1 = a[1], y1 = a[0], x2 = b[1], y2 = b[0];
   const dx = x2 - x1, dy = y2 - y1;
   const lengthSq = dx * dx + dy * dy;
   if (lengthSq === 0) return distanceKm(p, a);
 
-  // Find the projection factor t (clamped between 0 and 1 to stay on the line)
   let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lengthSq;
   t = Math.max(0, Math.min(1, t));
 
@@ -257,12 +254,26 @@ function createAppServer(options = {}) {
       if (state.lastAnnouncement[routeId]) socket.emit('newAnnouncement', state.lastAnnouncement[routeId]);
       if (state.lastPosition[routeId]) socket.emit('updateMap', state.lastPosition[routeId]);
     });
+    
     socket.on('driverOnline', (routeId) => {
       if (socket.data.session.role === 'driver' && validRoute(routeId) && socket.data.activeRoute === routeId) setStatus(routeId, 'Shuttle online', 'Driver is online and sharing location.');
     });
+    
     socket.on('driverOffline', (routeId) => {
       if (socket.data.session.role === 'driver' && validRoute(routeId) && socket.data.activeRoute === routeId) setStatus(routeId, 'Driver offline', 'Shuttle location sharing has stopped.');
     });
+
+    // NEW: API handler to allow the frontend to cancel a check-in if the shuttle passes
+    socket.on('cancelWaiting', (payload) => {
+      if (socket.data.session.role !== 'student') return;
+      const routeId = payload?.route;
+      if (validRoute(routeId) && socket.data.checkedInRoutes.has(routeId)) {
+        socket.data.checkedInRoutes.delete(routeId);
+        state.waitingPassengers[routeId] = Math.max(0, state.waitingPassengers[routeId] - 1);
+        io.to(routeId).emit('updatePassengerCount', state.waitingPassengers[routeId]);
+      }
+    });
+    
     socket.on('commuterWaiting', (payload, acknowledge) => {
       const ack = typeof acknowledge === 'function' ? acknowledge : () => {};
       if (socket.data.session.role !== 'student') return ack({ ok: false, error: 'unauthorized' });
@@ -279,12 +290,28 @@ function createAppServer(options = {}) {
         return ack({ ok: false, error: `You are too far from the route path (${distKm.toFixed(1)}km away).` });
       }
 
+      // UPDATED: Check if shuttle has already physically passed the commuter's vector
+      const dx = route.terminal[1] - route.start[1];
+      const dy = route.terminal[0] - route.start[0];
+      const lenSq = dx * dx + dy * dy;
+      if (lenSq > 0) {
+        const tUser = ((commuterPos[1] - route.start[1]) * dx + (commuterPos[0] - route.start[0]) * dy) / lenSq;
+        const shuttle = state.lastPosition[routeId];
+        if (shuttle && shuttle.lat && shuttle.lng) {
+          const tShuttle = ((shuttle.lng - route.start[1]) * dx + (shuttle.lat - route.start[0]) * dy) / lenSq;
+          if (tShuttle > tUser) {
+            return ack({ ok: false, error: 'The shuttle has already passed your location.' });
+          }
+        }
+      }
+
       if (socket.data.checkedInRoutes.has(routeId)) return ack({ ok: true, count: state.waitingPassengers[routeId] });
       socket.data.checkedInRoutes.add(routeId);
       state.waitingPassengers[routeId] += 1;
       io.to(routeId).emit('updatePassengerCount', state.waitingPassengers[routeId]);
       return ack({ ok: true, count: state.waitingPassengers[routeId] });
     });
+    
     socket.on('driverLocation', (payload) => {
       if (socket.data.session.role !== 'driver' || !validRoute(payload?.route) || socket.data.activeRoute !== payload.route) return;
       const routeId = payload.route;
@@ -319,6 +346,7 @@ function createAppServer(options = {}) {
       state.etaCache.delete(routeId);
       io.to(routeId).emit('updateMap', mapValue);
     });
+    
     socket.on('driverArrived', (payload) => {
       if (socket.data.session.role !== 'driver') return;
       const routeId = typeof payload === 'string' ? payload : payload?.route;
@@ -328,11 +356,13 @@ function createAppServer(options = {}) {
       io.to(routeId).emit('updatePassengerCount', 0);
       setStatus(routeId, 'Arrived', 'The shuttle has arrived at the terminal.');
     });
+    
     socket.on('sendAnnouncement', (payload) => {
       if (socket.data.session.role !== 'driver') return;
       const routeId = payload?.route;
       if (validRoute(routeId) && socket.data.activeRoute === routeId) announce(routeId, payload.msg);
     });
+    
     socket.on('updateCapacity', (payload) => {
       if (socket.data.session.role !== 'driver' || !['Available', 'Filling', 'Full'].includes(payload?.capacity)) return;
       const routeId = payload.route;
@@ -340,6 +370,7 @@ function createAppServer(options = {}) {
       state.capacity[routeId] = payload.capacity;
       io.to(routeId).emit('capacityUpdate', { route: routeId, capacity: payload.capacity });
     });
+    
     socket.on('sosAlert', (payload) => {
       if (socket.data.session.role !== 'driver') return;
       const routeId = payload?.route;
