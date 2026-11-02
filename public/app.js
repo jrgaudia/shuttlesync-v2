@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const $ = (q) => document.querySelector(q);
-  const state = { role: null, account: null, token: null, routes: [], route: null, routeStatus: null, socket: null, map: null, marker: null, terminal: null, userMarker: null, routePath: null, distanceLine: null, watchId: null, demoTimer: null, wakeLock: null, lastPositionAt: 0, mapTouched: false, online: false, speedKmh: 0, selectedRoute: null };
+  const state = { role: null, account: null, token: null, routes: [], route: null, routeStatus: null, socket: null, map: null, marker: null, terminal: null, userMarker: null, distanceLine: null, watchId: null, demoTimer: null, wakeLock: null, lastPositionAt: 0, mapTouched: false, online: false, speedKmh: 0, selectedRoute: null };
   let fareReturnFocus = null;
   const screens = ['role', 'login', 'route', 'commuter', 'driver'];
   const showScreen = (name) => { screens.forEach((s) => $(`#screen-${s}`).classList.toggle('hidden', s !== name)); };
@@ -56,11 +56,6 @@
     if (state.terminal) state.map.removeLayer(state.terminal);
     state.terminal = L.marker(state.route.terminal, { icon: icon('terminal'), title: `${state.route.name} terminal`, alt: 'Selected route terminal' }).addTo(state.map);
     
-    if (state.routePath) state.map.removeLayer(state.routePath);
-    if (state.route.start && state.route.terminal) {
-      state.routePath = L.polyline([state.route.start, state.route.terminal], { color: '#3b82f6', weight: 4, opacity: 0.6 }).addTo(state.map);
-    }
-    
     setTimeout(() => state.map.invalidateSize(), 120);
   }
   
@@ -68,12 +63,10 @@
     if (state.map && state.marker) state.map.removeLayer(state.marker);
     if (state.map && state.terminal) state.map.removeLayer(state.terminal);
     if (state.map && state.userMarker) state.map.removeLayer(state.userMarker);
-    if (state.map && state.routePath) state.map.removeLayer(state.routePath);
     if (state.map && state.distanceLine) state.map.removeLayer(state.distanceLine);
     state.marker = null;
     state.terminal = null;
     state.userMarker = null;
-    state.routePath = null;
     state.distanceLine = null;
   }
   
@@ -182,7 +175,6 @@
     state.watchId = navigator.geolocation.watchPosition((position) => { const c = position.coords; const data = { route: state.route.id, lat: c.latitude, lng: c.longitude, accuracy: c.accuracy, heading: c.heading, speed: c.speed, ts: position.timestamp }; state.socket?.emit('driverLocation', data); renderPosition(data); $('#driver-state').textContent = 'Online · GPS'; $('#driver-message').textContent = 'Sharing your current location with this route.'; }, gpsError, { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
   }
   
-  // UPDATED: Now generates coordinates perfectly mapped to the predetermined route line
   function startDemo() {
     state.online = true; 
     state.socket?.emit('driverOnline', state.route.id); 
