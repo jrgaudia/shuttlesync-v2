@@ -1,7 +1,6 @@
 (() => {
   'use strict';
   const $ = (q) => document.querySelector(q);
-  // UPDATED: Added routePath and distanceLine to the state
   const state = { role: null, account: null, token: null, routes: [], route: null, routeStatus: null, socket: null, map: null, marker: null, terminal: null, userMarker: null, routePath: null, distanceLine: null, watchId: null, demoTimer: null, wakeLock: null, lastPositionAt: 0, mapTouched: false, online: false, speedKmh: 0, selectedRoute: null };
   let fareReturnFocus = null;
   const screens = ['role', 'login', 'route', 'commuter', 'driver'];
@@ -57,7 +56,6 @@
     if (state.terminal) state.map.removeLayer(state.terminal);
     state.terminal = L.marker(state.route.terminal, { icon: icon('terminal'), title: `${state.route.name} terminal`, alt: 'Selected route terminal' }).addTo(state.map);
     
-    // NEW: Draw the solid blue line for the shuttle's predetermined route path
     if (state.routePath) state.map.removeLayer(state.routePath);
     if (state.route.start && state.route.terminal) {
       state.routePath = L.polyline([state.route.start, state.route.terminal], { color: '#3b82f6', weight: 4, opacity: 0.6 }).addTo(state.map);
@@ -184,10 +182,32 @@
     state.watchId = navigator.geolocation.watchPosition((position) => { const c = position.coords; const data = { route: state.route.id, lat: c.latitude, lng: c.longitude, accuracy: c.accuracy, heading: c.heading, speed: c.speed, ts: position.timestamp }; state.socket?.emit('driverLocation', data); renderPosition(data); $('#driver-state').textContent = 'Online · GPS'; $('#driver-message').textContent = 'Sharing your current location with this route.'; }, gpsError, { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 });
   }
   
+  // UPDATED: Now generates coordinates perfectly mapped to the predetermined route line
   function startDemo() {
-    const target = state.route.terminal; let lat = target[0] + .035, lng = target[1] - .035; state.online = true; state.socket?.emit('driverOnline', state.route.id); $('#driver-state').textContent = 'Online · Demo mode'; $('#driver-message').textContent = 'Simulated route position; this is not GPS.'; $('#mode-badge').textContent = 'DEMO MODE';
-    const send = () => { lat -= .00025; lng += .00025; const data = { route: state.route.id, lat, lng, accuracy: null, heading: null, speed: 0, ts: Date.now(), mode: 'demo', eta: 4, status: 'En route' }; state.socket?.emit('driverLocation', data); renderPosition(data); $('#driver-state').textContent = 'Online · Demo mode'; };
-    send(); state.demoTimer = setInterval(send, 3000);
+    state.online = true; 
+    state.socket?.emit('driverOnline', state.route.id); 
+    $('#driver-state').textContent = 'Online · Demo mode'; 
+    $('#driver-message').textContent = 'Simulated route position; this is not GPS.'; 
+    $('#mode-badge').textContent = 'DEMO MODE';
+    
+    let progress = 0.0;
+    const start = state.route.start;
+    const end = state.route.terminal;
+
+    const send = () => { 
+      progress += 0.02; 
+      if (progress > 1) progress = 0; 
+
+      const lat = start[0] + (end[0] - start[0]) * progress;
+      const lng = start[1] + (end[1] - start[1]) * progress;
+
+      const data = { route: state.route.id, lat, lng, accuracy: null, heading: null, speed: 0, ts: Date.now(), mode: 'demo', eta: 4, status: 'En route' }; 
+      state.socket?.emit('driverLocation', data); 
+      renderPosition(data); 
+      $('#driver-state').textContent = 'Online · Demo mode'; 
+    };
+    send(); 
+    state.demoTimer = setInterval(send, 3000);
   }
   
   async function signout() { stopTracking(); try { await api('/api/logout', { method: 'POST' }); } catch (_) { } state.socket?.disconnect(); state.token = null; state.account = null; state.route = null; state.selectedRoute = null; clearRouteMarkers(); state.mapTouched = false; showScreen('role'); }
@@ -200,7 +220,6 @@
   $('#change-route').addEventListener('click', async () => { stopTracking(); state.socket?.disconnect(); clearRouteMarkers(); await loadRoutes(); showScreen('route'); });
   $('#recenter').addEventListener('click', () => { state.mapTouched = false; if (state.marker) state.map.setView(state.marker.getLatLng(), Math.max(state.map.getZoom(), 14)); else if (state.route) state.map.setView(state.route.terminal, 14); });
   
-  // NEW: Math helper to project the user's location onto the shuttle's path line
   function getNearestPointOnSegment(p, a, b) {
     const x0 = p[1], y0 = p[0], x1 = a[1], y1 = a[0], x2 = b[1], y2 = b[0];
     const dx = x2 - x1, dy = y2 - y1;
@@ -211,7 +230,6 @@
     return [y1 + t * dy, x1 + t * dx];
   }
 
-  // NEW: Helper function to draw the user's dot and the dashed connecting line
   function showUserLocation(pos) {
     if (!state.userMarker) {
       state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#22c55e', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location');
@@ -219,7 +237,6 @@
       state.userMarker.setLatLng(pos);
     }
     
-    // Draw a dashed line to visually show distance to the predetermined route
     if (state.route && state.route.start && state.route.terminal) {
       const nearest = getNearestPointOnSegment(pos, state.route.start, state.route.terminal);
       if (state.distanceLine) state.map.removeLayer(state.distanceLine);
@@ -238,7 +255,7 @@
     navigator.geolocation.getCurrentPosition(
       (p) => {
         const pos = [p.coords.latitude, p.coords.longitude];
-        showUserLocation(pos); // UPDATED: Immediately drops your green dot and dashed line
+        showUserLocation(pos); 
 
         button.textContent = 'Verifying...';
         let settled = false;
@@ -276,7 +293,7 @@
     navigator.geolocation.getCurrentPosition(
       (p) => { 
         const pos = [p.coords.latitude, p.coords.longitude]; 
-        showUserLocation(pos); // UPDATED: Uses the new helper to draw dot + dashed line
+        showUserLocation(pos); 
       }, 
       () => toast('Location denied or unavailable. You can continue using manual route selection.'), 
       { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
