@@ -70,6 +70,16 @@
     state.distanceLine = null;
   }
   
+  // NEW: Math helper to figure out where a coordinate falls along the route line
+  function getProgressAlongRoute(pos) {
+    if (!state.route || !state.route.start || !state.route.terminal) return 0;
+    const a = state.route.start, b = state.route.terminal, p = pos;
+    const dx = b[1] - a[1], dy = b[0] - a[0];
+    const lenSq = dx * dx + dy * dy;
+    if (lenSq === 0) return 0;
+    return ((p[1] - a[1]) * dx + (p[0] - a[0]) * dy) / lenSq;
+  }
+  
   function renderPosition(data) {
     if (!state.route || (data.route && data.route !== state.route.id) || !Number.isFinite(Number(data.lat)) || !Number.isFinite(Number(data.lng))) return;
     if (state.map && window.L) {
@@ -80,6 +90,20 @@
       if (!state.marker) state.marker = L.marker(latlng, { icon, title: 'Shuttle location', alt: 'Latest reported shuttle position' }).addTo(state.map);
       else state.marker.setLatLng(latlng);
       if (!state.mapTouched) state.map.panTo(latlng, { animate: true, duration: .5 });
+
+      // NEW: Automatically cancel check-in if the shuttle passes the waiting commuter
+      if (state.userMarker && $('#checkin').textContent === 'Pick-up confirmed') {
+        const userPos = [state.userMarker.getLatLng().lat, state.userMarker.getLatLng().lng];
+        const userT = getProgressAlongRoute(userPos);
+        const shuttleT = getProgressAlongRoute(latlng);
+        
+        if (shuttleT > userT + 0.02) { // 2% buffer prevents jitter cancellation
+          $('#checkin').textContent = 'Wait along route';
+          $('#checkin').disabled = false;
+          state.socket?.emit('cancelWaiting', { route: state.route.id });
+          toast('The shuttle has passed your location. Pickup cancelled.');
+        }
+      }
     }
     const receivedAt = Number(data.receivedAt) || Number(data.ts) || Date.now();
     const ageMs = Math.max(0, Date.now() - receivedAt);
@@ -248,6 +272,16 @@
       (p) => {
         const pos = [p.coords.latitude, p.coords.longitude];
         showUserLocation(pos); 
+        
+        // NEW: Preemptively reject the network request if the shuttle is already past
+        const userT = getProgressAlongRoute(pos);
+        const shuttleT = state.marker ? getProgressAlongRoute([state.marker.getLatLng().lat, state.marker.getLatLng().lng]) : -1;
+        if (shuttleT > userT) {
+           button.disabled = false;
+           button.textContent = "Wait along route";
+           toast('The shuttle has already passed your location.');
+           return;
+        }
 
         button.textContent = 'Verifying...';
         let settled = false;
