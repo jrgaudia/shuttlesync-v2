@@ -5,12 +5,13 @@ const crypto = require('node:crypto');
 const { Server: SocketServer } = require('socket.io');
 require('dotenv').config({ quiet: true });
 
+// UPDATED: Every route now shares the Mapúa MCL campus as its starting coordinate [14.2693, 121.1253]
 const ROUTES = {
-  calamba: { id: 'calamba', name: 'Calamba Terminal', start: [14.1925, 121.1332], terminal: [14.2046, 121.1553], driver: { name: 'Eduardo Santos', vehicle: 'Toyota Hiace Commuter', plate: 'NDO 4521' } },
-  'sta-rosa': { id: 'sta-rosa', name: 'Sta. Rosa Terminal', start: [14.2847, 121.0963], terminal: [14.2939, 121.1036], driver: { name: 'Ricardo Mendoza', vehicle: 'Mitsubishi L300 FB', plate: 'DWT 8832' } },
-  binan: { id: 'binan', name: 'Biñan Terminal', start: [14.3223, 121.0805], terminal: [14.3313, 121.0801], driver: { name: 'Felipe Villanueva', vehicle: 'Nissan NV350 Urvan', plate: 'NGL 1024' } },
-  'san-pedro': { id: 'san-pedro', name: 'San Pedro Terminal', start: [14.3615, 121.0489], terminal: [14.3562, 121.0427], driver: { name: 'Jose Garcia', vehicle: 'Toyota Hiace Grandia', plate: 'PQS 7750' } },
-  carmona: { id: 'carmona', name: 'Carmona Terminal', start: [14.3060, 121.0366], terminal: [14.3148, 121.0543], driver: { name: 'Antonio Reyes', vehicle: 'Mitsubishi L300 Exceed', plate: 'WXY 9012' } }
+  calamba: { id: 'calamba', name: 'Calamba Terminal', start: [14.2693, 121.1253], terminal: [14.2046, 121.1553], driver: { name: 'Eduardo Santos', vehicle: 'Toyota Hiace Commuter', plate: 'NDO 4521' } },
+  'sta-rosa': { id: 'sta-rosa', name: 'Sta. Rosa Terminal', start: [14.2693, 121.1253], terminal: [14.2939, 121.1036], driver: { name: 'Ricardo Mendoza', vehicle: 'Mitsubishi L300 FB', plate: 'DWT 8832' } },
+  binan: { id: 'binan', name: 'Biñan Terminal', start: [14.2693, 121.1253], terminal: [14.3313, 121.0801], driver: { name: 'Felipe Villanueva', vehicle: 'Nissan NV350 Urvan', plate: 'NGL 1024' } },
+  'san-pedro': { id: 'san-pedro', name: 'San Pedro Terminal', start: [14.2693, 121.1253], terminal: [14.3562, 121.0427], driver: { name: 'Jose Garcia', vehicle: 'Toyota Hiace Grandia', plate: 'PQS 7750' } },
+  carmona: { id: 'carmona', name: 'Carmona Terminal', start: [14.2693, 121.1253], terminal: [14.3148, 121.0543], driver: { name: 'Antonio Reyes', vehicle: 'Mitsubishi L300 Exceed', plate: 'WXY 9012' } }
 };
 const PAYMENT_METHODS = new Set(['cash', 'ewallet', 'card']);
 const MAX_LOGIN_ATTEMPTS = 1000;
@@ -156,7 +157,6 @@ function createAppServer(options = {}) {
   
   app.get('/api/config', (_req, res) => res.json({ mode: 'demo', trafficAvailable: false, trafficProvider: null, locationRequiresHttps: true, fareConfirmed }));
   
-  // UPDATED: Now sends the 'start' coordinates to the frontend to draw the path
   app.get('/api/routes', (_req, res) => res.json(Object.values(ROUTES).map((route) => ({
     id: route.id, name: route.name, start: route.start, terminal: route.terminal, driver: route.driver,
     status: state.status[route.id], waiting: state.waitingPassengers[route.id], capacity: state.capacity[route.id], mode: 'demo'
