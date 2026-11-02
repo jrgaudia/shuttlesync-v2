@@ -1,7 +1,8 @@
 (() => {
   'use strict';
   const $ = (q) => document.querySelector(q);
-  const state = { role: null, account: null, token: null, routes: [], route: null, routeStatus: null, socket: null, map: null, marker: null, terminal: null, userMarker: null, watchId: null, demoTimer: null, wakeLock: null, lastPositionAt: 0, mapTouched: false, online: false, speedKmh: 0, selectedRoute: null };
+  // UPDATED: Added routePath and distanceLine to the state
+  const state = { role: null, account: null, token: null, routes: [], route: null, routeStatus: null, socket: null, map: null, marker: null, terminal: null, userMarker: null, routePath: null, distanceLine: null, watchId: null, demoTimer: null, wakeLock: null, lastPositionAt: 0, mapTouched: false, online: false, speedKmh: 0, selectedRoute: null };
   let fareReturnFocus = null;
   const screens = ['role', 'login', 'route', 'commuter', 'driver'];
   const showScreen = (name) => { screens.forEach((s) => $(`#screen-${s}`).classList.toggle('hidden', s !== name)); };
@@ -55,6 +56,13 @@
     
     if (state.terminal) state.map.removeLayer(state.terminal);
     state.terminal = L.marker(state.route.terminal, { icon: icon('terminal'), title: `${state.route.name} terminal`, alt: 'Selected route terminal' }).addTo(state.map);
+    
+    // NEW: Draw the solid blue line for the shuttle's predetermined route path
+    if (state.routePath) state.map.removeLayer(state.routePath);
+    if (state.route.start && state.route.terminal) {
+      state.routePath = L.polyline([state.route.start, state.route.terminal], { color: '#3b82f6', weight: 4, opacity: 0.6 }).addTo(state.map);
+    }
+    
     setTimeout(() => state.map.invalidateSize(), 120);
   }
   
@@ -62,9 +70,13 @@
     if (state.map && state.marker) state.map.removeLayer(state.marker);
     if (state.map && state.terminal) state.map.removeLayer(state.terminal);
     if (state.map && state.userMarker) state.map.removeLayer(state.userMarker);
+    if (state.map && state.routePath) state.map.removeLayer(state.routePath);
+    if (state.map && state.distanceLine) state.map.removeLayer(state.distanceLine);
     state.marker = null;
     state.terminal = null;
     state.userMarker = null;
+    state.routePath = null;
+    state.distanceLine = null;
   }
   
   function renderPosition(data) {
@@ -188,6 +200,33 @@
   $('#change-route').addEventListener('click', async () => { stopTracking(); state.socket?.disconnect(); clearRouteMarkers(); await loadRoutes(); showScreen('route'); });
   $('#recenter').addEventListener('click', () => { state.mapTouched = false; if (state.marker) state.map.setView(state.marker.getLatLng(), Math.max(state.map.getZoom(), 14)); else if (state.route) state.map.setView(state.route.terminal, 14); });
   
+  // NEW: Math helper to project the user's location onto the shuttle's path line
+  function getNearestPointOnSegment(p, a, b) {
+    const x0 = p[1], y0 = p[0], x1 = a[1], y1 = a[0], x2 = b[1], y2 = b[0];
+    const dx = x2 - x1, dy = y2 - y1;
+    const lengthSq = dx * dx + dy * dy;
+    if (lengthSq === 0) return a;
+    let t = ((x0 - x1) * dx + (y0 - y1) * dy) / lengthSq;
+    t = Math.max(0, Math.min(1, t));
+    return [y1 + t * dy, x1 + t * dx];
+  }
+
+  // NEW: Helper function to draw the user's dot and the dashed connecting line
+  function showUserLocation(pos) {
+    if (!state.userMarker) {
+      state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#22c55e', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location');
+    } else {
+      state.userMarker.setLatLng(pos);
+    }
+    
+    // Draw a dashed line to visually show distance to the predetermined route
+    if (state.route && state.route.start && state.route.terminal) {
+      const nearest = getNearestPointOnSegment(pos, state.route.start, state.route.terminal);
+      if (state.distanceLine) state.map.removeLayer(state.distanceLine);
+      state.distanceLine = L.polyline([pos, nearest], { color: '#ef4444', weight: 3, dashArray: '5, 8' }).addTo(state.map);
+    }
+  }
+
   $('#checkin').addEventListener('click', () => {
     if (!state.socket?.connected) return toast('Realtime connection unavailable.');
     if (!navigator.geolocation) return toast('Location is unavailable in this browser.');
@@ -198,6 +237,9 @@
 
     navigator.geolocation.getCurrentPosition(
       (p) => {
+        const pos = [p.coords.latitude, p.coords.longitude];
+        showUserLocation(pos); // UPDATED: Immediately drops your green dot and dashed line
+
         button.textContent = 'Verifying...';
         let settled = false;
         const timeout = setTimeout(() => {
@@ -228,7 +270,18 @@
     );
   });
   
-  $('#locate-me').addEventListener('click', () => { if (!navigator.geolocation) return toast('Location is unavailable in this browser.'); toast('Requesting optional location permission…'); navigator.geolocation.getCurrentPosition((p) => { const pos = [p.coords.latitude, p.coords.longitude]; if (!state.userMarker) state.userMarker = L.circleMarker(pos, { radius: 8, color: '#fff', weight: 3, fillColor: '#22c55e', fillOpacity: 1 }).addTo(state.map).bindTooltip('Your location'); else state.userMarker.setLatLng(pos); }, () => toast('Location denied or unavailable. You can continue using manual route selection.'), { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }); });
+  $('#locate-me').addEventListener('click', () => { 
+    if (!navigator.geolocation) return toast('Location is unavailable in this browser.'); 
+    toast('Requesting optional location permission…'); 
+    navigator.geolocation.getCurrentPosition(
+      (p) => { 
+        const pos = [p.coords.latitude, p.coords.longitude]; 
+        showUserLocation(pos); // UPDATED: Uses the new helper to draw dot + dashed line
+      }, 
+      () => toast('Location denied or unavailable. You can continue using manual route selection.'), 
+      { enableHighAccuracy: true, maximumAge: 10000, timeout: 10000 }
+    ); 
+  });
   
   $('#fare-open').addEventListener('click', async () => {
     fareReturnFocus = document.activeElement;
@@ -277,11 +330,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  // Toggle when tapping the handle or the ETA area
   if (handle) handle.addEventListener('click', toggleSheet);
   if (arrivalRow) arrivalRow.addEventListener('click', toggleSheet);
 
-  // Optional: Start the app with the panel collapsed so the map is visible immediately
   if (sheet) sheet.classList.add('collapsed');
 });
 
@@ -291,10 +342,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (backDriverBtn) {
         backDriverBtn.addEventListener('click', () => {
-            // Hide the active driver console
             document.getElementById('screen-driver').classList.add('hidden');
-            
-            // Unhide the route selection menu
             document.getElementById('screen-route').classList.remove('hidden');
         });
     }
